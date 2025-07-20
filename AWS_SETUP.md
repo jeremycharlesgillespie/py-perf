@@ -86,7 +86,7 @@ perf = PyPerf(config={'use_dynamodb': False})
 # Custom table and region
 perf = PyPerf(config={
     'dynamodb_table': 'my-custom-table',
-    'aws_region': 'us-west-2'
+    'aws_region': 'us-east-1'
 })
 ```
 

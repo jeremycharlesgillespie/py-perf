@@ -57,12 +57,31 @@ class DjangoTester:
             preexec_fn=os.setsid
         )
         
-        # Wait for server to start
+        # Wait for server to start and capture startup output
         for i in range(30):  # Wait up to 30 seconds
             try:
                 response = requests.get(f"{self.base_url}/", timeout=1)
                 if response.status_code in [200, 404, 500]:  # Server is responding
                     print(f"✓ Server started successfully (attempt {i+1})")
+                    
+                    # Display server startup output (including config info)
+                    if i == 0:  # Only show on first successful attempt
+                        time.sleep(0.5)  # Give server time to output config
+                        try:
+                            # Read any available stdout/stderr
+                            stdout_data = self.server_process.stdout.read(8192).decode('utf-8', errors='ignore')
+                            stderr_data = self.server_process.stderr.read(8192).decode('utf-8', errors='ignore')
+                            
+                            if stdout_data and ('PYPERFWEB SERVER CONFIGURATION' in stdout_data or 'config' in stdout_data.lower()):
+                                print("\n📋 Server startup output:")
+                                print(stdout_data.strip())
+                            if stderr_data and ('PYPERFWEB SERVER CONFIGURATION' in stderr_data or 'config' in stderr_data.lower()):
+                                print("\n📋 Server configuration info:")
+                                print(stderr_data.strip())
+                                
+                        except Exception as e:
+                            print(f"Note: Could not capture server output: {e}")
+                    
                     return True
             except requests.exceptions.RequestException:
                 time.sleep(1)
@@ -142,10 +161,6 @@ class DjangoTester:
         self.test_endpoint("/api/hostnames/", description="API Hostnames")
         self.test_endpoint("/api/functions/", description="API Functions")
         
-        # Test non-existent function (should handle gracefully)
-        self.test_endpoint("/functions/nonexistent_function/", 
-                         expected_status=200,  # Should render with "not found" content
-                         description="Function analysis - not found")
     
     def run_api_tests(self):
         """Test API endpoints for proper JSON responses."""
@@ -171,6 +186,47 @@ class DjangoTester:
                     print(f"  ✗ Invalid JSON response")
                     result['success'] = False
     
+    def run_function_analysis_tests(self):
+        """Test function analysis view with various scenarios."""
+        print("\n🔍 Testing function analysis...")
+        
+        # Test with non-existent function (should return 404)
+        self.test_endpoint("/functions/nonexistent_function/", 
+                         expected_status=404,  # Should return 404 for non-existent function
+                         description="Function analysis - non-existent function")
+        
+        # Test with common function names that might exist in sample data
+        common_functions = [
+            "cpu_intensive_task",
+            "slow_io_operation", 
+            "mixed_workload",
+            "fast_calculation",
+            "variable_duration"
+        ]
+        
+        for func_name in common_functions:
+            self.test_endpoint(f"/functions/{func_name}/",
+                             expected_status=200,
+                             description=f"Function analysis - {func_name}")
+        
+        # Test function names with special characters (URL encoding)
+        special_function_names = [
+            "function_with_underscores",
+            "function-with-dashes",  # Should be URL safe
+            "function123",  # With numbers
+        ]
+        
+        for func_name in special_function_names:
+            self.test_endpoint(f"/functions/{func_name}/",
+                             expected_status=404,  # These functions likely don't exist in sample data
+                             description=f"Function analysis - {func_name} (special chars)")
+        
+        # Test very long function name (edge case)
+        long_function_name = "very_long_function_name_that_might_cause_issues_with_url_handling"
+        self.test_endpoint(f"/functions/{long_function_name}/",
+                         expected_status=404,  # This function likely doesn't exist
+                         description="Function analysis - long function name")
+
     def run_error_handling_tests(self):
         """Test error handling."""
         print("\n🚨 Testing error handling...")
@@ -178,9 +234,9 @@ class DjangoTester:
         # Test 404 endpoints
         self.test_endpoint("/nonexistent/", expected_status=404, description="404 Not Found")
         
-        # Test record detail with invalid ID (should handle gracefully)
+        # Test record detail with invalid ID (should return 404)
         self.test_endpoint("/records/invalid_id/", 
-                         expected_status=200,  # Should render error template
+                         expected_status=404,  # Should return 404 for invalid record ID
                          description="Invalid record ID")
     
     def run_performance_tests(self):
@@ -253,6 +309,7 @@ class DjangoTester:
             # Run test suites
             self.run_url_tests()
             self.run_api_tests()
+            self.run_function_analysis_tests()
             self.run_error_handling_tests()
             self.run_performance_tests()
             

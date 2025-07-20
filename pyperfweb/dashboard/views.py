@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseNotFound, HttpResponseServerError
 from django.core.paginator import Paginator
 from django.utils.dateparse import parse_datetime
 from datetime import datetime, timedelta
@@ -122,7 +122,7 @@ def record_detail(request, record_id):
                 break
         
         if not record:
-            return render(request, 'dashboard/record_not_found.html', {'record_id': record_id})
+            return HttpResponseNotFound(render(request, 'dashboard/record_not_found.html', {'record_id': record_id}).content)
         
         # Get related records from the same session
         session_records = dynamodb_service.get_records_by_session(record.session_id)
@@ -139,7 +139,7 @@ def record_detail(request, record_id):
         return render(request, 'dashboard/record_detail.html', context)
     
     except Exception as e:
-        return render(request, 'dashboard/error.html', {'error': str(e)})
+        return HttpResponseServerError(render(request, 'dashboard/error.html', {'error': str(e)}).content)
 
 
 def function_analysis(request, function_name):
@@ -148,7 +148,7 @@ def function_analysis(request, function_name):
         records = dynamodb_service.get_records_with_function(function_name, limit=200)
         
         if not records:
-            return render(request, 'dashboard/function_not_found.html', {'function_name': function_name})
+            return HttpResponseNotFound(render(request, 'dashboard/function_not_found.html', {'function_name': function_name}).content)
         
         # Analyze function performance across records
         function_stats = []
@@ -192,7 +192,7 @@ def function_analysis(request, function_name):
         return render(request, 'dashboard/function_analysis.html', context)
     
     except Exception as e:
-        return render(request, 'dashboard/error.html', {'error': str(e)})
+        return HttpResponseServerError(render(request, 'dashboard/error.html', {'error': str(e)}).content)
 
 
 def api_metrics(request):

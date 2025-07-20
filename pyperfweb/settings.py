@@ -11,9 +11,81 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import sys
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load PyPerf configuration and display config file info (only once)
+_config_displayed = getattr(sys.modules[__name__], '_config_displayed', False)
+
+try:
+    # Add src path to import PyPerf config
+    src_path = BASE_DIR / "src" / "py_perf"
+    if src_path.exists():
+        sys.path.insert(0, str(src_path))
+        from config import get_config
+        
+        # Load PyPerf configuration
+        pyperj_config = get_config()
+        
+        # Display configuration file information (only once)
+        if not _config_displayed:
+            print("\n" + "="*60)
+            print("🔧 PYPERFWEB SERVER CONFIGURATION")
+            print("="*60)
+            
+            # Show which config file was used
+            config_files_checked = [
+                Path.cwd() / "py-perf.yaml",
+                Path.cwd() / ".py-perf.yaml",
+                Path.home() / ".py-perf.yaml",
+                Path.home() / ".config" / "py-perf" / "config.yaml"
+            ]
+            
+            active_config_file = None
+            for config_file in config_files_checked:
+                if config_file.exists():
+                    active_config_file = config_file
+                    break
+            
+            if active_config_file:
+                print(f"📄 Using config file: {active_config_file}")
+            else:
+                print("📄 Using default configuration (no config file found)")
+            
+            # Show key configuration values
+            print(f"🔹 PyPerf enabled: {pyperj_config.is_enabled()}")
+            print(f"🔹 Debug mode: {pyperj_config.is_debug()}")
+            print(f"🔹 Storage mode: {'Local' if pyperj_config.is_local_only() else 'AWS DynamoDB'}")
+            
+            if pyperj_config.is_local_only():
+                print(f"🔹 Local data dir: {pyperj_config.get('local.data_dir', './perf_data')}")
+            else:
+                aws_config = pyperj_config.get_aws_config()
+                print(f"🔹 AWS region: {aws_config.get('region', 'not set')}")
+                print(f"🔹 DynamoDB table: {aws_config.get('table_name', 'not set')}")
+            
+            # Show dashboard configuration
+            dashboard_config = pyperj_config.get_dashboard_config()
+            dashboard_host = dashboard_config.get('host', '127.0.0.1')
+            dashboard_port = dashboard_config.get('port', 8000)
+            print(f"🔹 Dashboard URL: http://{dashboard_host}:{dashboard_port}")
+            
+            print("="*60)
+           
+            
+            # Mark that we've displayed the config
+            sys.modules[__name__]._config_displayed = True
+        
+        # Store config for use in Django settings
+        PYPERFWEB_CONFIG = pyperj_config
+        
+except Exception as e:
+    print(f"\n⚠️  Warning: Could not load PyPerf configuration: {e}")
+    print("🔹 Using default Django settings")
+    PYPERFWEB_CONFIG = None
 
 
 # Quick-start development settings - unsuitable for production
@@ -124,11 +196,18 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # AWS DynamoDB Configuration
-import os
+# Use PyPerf configuration if available, otherwise fall back to environment variables
+if 'PYPERFWEB_CONFIG' in locals() and PYPERFWEB_CONFIG:
+    aws_config = PYPERFWEB_CONFIG.get_aws_config()
+    AWS_DEFAULT_REGION = aws_config.get('region', 'us-east-1')
+    DYNAMODB_TABLE_NAME = aws_config.get('table_name', 'py-perf-data')
+else:
+    # Fallback to environment variables
+    AWS_DEFAULT_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+    DYNAMODB_TABLE_NAME = 'py-perf-data'
+
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-AWS_DEFAULT_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
-DYNAMODB_TABLE_NAME = 'py-perf-data'
 
 # Django REST Framework
 REST_FRAMEWORK = {

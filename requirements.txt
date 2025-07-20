@@ -1,0 +1,7 @@
+# Core dependencies for py-perf
+boto3>=1.26.0
+omegaconf>=2.3.0
+
+# Django web dashboard dependencies
+Django>=4.2.0
+djangorestframework>=3.14.0
