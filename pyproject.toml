@@ -28,8 +28,7 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    # Add your runtime dependencies here
-    # "requests>=2.25.0",
+    "boto3>=1.26.0",
 ]
 
 [project.optional-dependencies]
@@ -48,10 +47,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/py-perf"
+Homepage = "https://github.com/jeremycharlesgillespie/py-perf"
 Documentation = "https://py-perf.readthedocs.io/"
-Repository = "https://github.com/yourusername/py-perf"
-"Bug Tracker" = "https://github.com/yourusername/py-perf/issues"
+Repository = "https://github.com/jeremycharlesgillespie/py-perf"
+"Bug Tracker" = "https://github.com/jeremycharlesgillespie/py-perf/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
