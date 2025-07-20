@@ -1,36 +1,6 @@
 # Python Library PyPI Boilerplate
 
 ## Project Structure
-```
-py_perf/
-├── src/
-│   └── py_perf/
-│       ├── __init__.py
-│       ├── core.py
-│       └── py.typed
-├── tests/
-│   ├── __init__.py
-│   └── test_core.py
-├── docs/
-│   └── README.md
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── pyproject.toml
-├── README.md
-├── LICENSE
-├── .gitignore
-└── MANIFEST.in
-```
-
-
-
-## Setup Instructions
-
-
-2. Update author information in `pyproject.toml` and `__init__.py`
-3. Update the GitHub URLs in `pyproject.toml`
-4. Customize the description and functionality in the core module
 
 ## Building and Publishing
 
@@ -41,39 +11,6 @@ python -m build
 # Upload to PyPI (requires twine and PyPI account)
 pip install twine
 twine upload dist/*
-
-### tests/test_core.py
-```python
-"""Tests for core functionality."""
-
-import pytest
-from py_perf.core import YourMainClass
-
-
-class TestYourMainClass:
-    """Test cases for YourMainClass."""
-    
-    def test_initialization(self):
-        """Test class initialization."""
-        instance = YourMainClass()
-        assert instance.config == {}
-        
-        config = {"key": "value"}
-        instance_with_config = YourMainClass(config)
-        assert instance_with_config.config == config
-    
-    def test_main_method_success(self):
-        """Test successful execution of main method."""
-        instance = YourMainClass()
-        result = instance.main_method("test data")
-        assert result == "Processed: test data"
-    
-    def test_main_method_empty_data(self):
-        """Test main method with empty data."""
-        instance = YourMainClass()
-        with pytest.raises(ValueError, match="Data cannot be empty"):
-            instance.main_method("")
-```
 
 
 # Py-Perf
@@ -89,14 +26,36 @@ pip install py-perf
 ## Quick Start
 
 ```python
-from py_perf import YourMainClass
+from py_perf import PyPerf
+import time
 
-# Initialize the library
-instance = YourMainClass()
+# Initialize the performance tracker
+perf = PyPerf()
 
-# Use the main functionality
-result = instance.main_method("your data")
-print(result)
+# Method 1: Use as decorator
+@perf.time_it
+def slow_function(n):
+    time.sleep(0.1)
+    return sum(range(n))
+
+# Method 2: Use as decorator with arguments
+@perf.time_it(store_args=True)
+def process_data(data, multiplier=2):
+    return [x * multiplier for x in data]
+
+# Call your functions
+result1 = slow_function(1000)
+result2 = process_data([1, 2, 3, 4, 5])
+
+# Get timing results
+summary = perf.get_summary()
+print(f"Total calls: {summary['call_count']}")
+print(f"Average wall time: {summary['wall_time']['average']:.4f}s")
+print(f"Average CPU time: {summary['cpu_time']['average']:.4f}s")
+
+# Get results for specific function
+slow_summary = perf.get_summary('slow_function')
+print(f"slow_function called {slow_summary['call_count']} times")
 ```
 
 ## Development
@@ -105,25 +64,114 @@ print(result)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/py-perf.git
+git clone https://github.com/jeremycharlesgillespie/py-perf.git
 cd py-perf
 
-# Install in development mode with dev dependencies
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # On macOS/Linux
+# or
+venv\Scripts\activate     # On Windows
+
+# Install dependencies
+pip install boto3
+
+# Install in development mode with dev dependencies (optional)
 pip install -e ".[dev]"
 
-# Install pre-commit hooks
+# Install pre-commit hooks (optional)
 pre-commit install
 ```
 
-### Running Tests
+### AWS DynamoDB Setup
+
+PyPerf automatically uploads timing data to AWS DynamoDB. See `AWS_SETUP.md` for complete setup instructions.
+
+Quick setup:
+1. Configure AWS CLI: `aws configure`
+2. Ensure your AWS user has DynamoDB permissions for the `py-perf-data` table
+3. PyPerf will automatically upload timing data on program exit
+
+### Virtual Environment Usage
+
+Always activate the virtual environment before running PyPerf:
 
 ```bash
-pytest
+# Activate virtual environment
+source venv/bin/activate
+
+# Run your PyPerf application
+python3 tester.py
+
+# Deactivate when done
+deactivate
+```
+
+## Web Dashboard
+
+PyPerf includes a Django web dashboard for visualizing and analyzing performance data from DynamoDB.
+
+### Starting the Web Dashboard
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run database migrations (first time only)
+python manage.py migrate
+
+# Start the Django development server
+python manage.py runserver 8000
+```
+
+The dashboard will be available at: http://127.0.0.1:8000
+
+### Web Dashboard Features
+
+- **Performance Overview**: Key metrics, slowest functions, most active hosts
+- **Advanced Filtering**: Filter by hostname, date range, function name, session ID
+- **Sorting**: Sort records by timestamp, hostname, total calls, wall time, etc.
+- **Function Analysis**: Detailed performance analysis for specific functions
+- **REST API**: Programmatic access to performance data
+- **Real-time Data**: Automatically displays latest performance data from DynamoDB
+
+### Automated Testing
+
+Run the comprehensive test suite to verify the web dashboard is working correctly:
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run automated test suite
+python test_django_server.py
+```
+
+The test suite will:
+- Automatically start/stop the Django server
+- Test all web pages and API endpoints
+- Verify response times and error handling
+- Report detailed results with 100% automation
+
+### Running PyPerf Library Tests
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run PyPerf library tests
+python tester.py
 ```
 
 ### Code Formatting
 
 ```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Format code (if dev dependencies installed)
 black src tests
 isort src tests
 flake8 src tests
@@ -133,195 +181,3 @@ mypy src
 ## License
 
 MIT License - see LICENSE file for details.
-```
-
-### LICENSE
-```
-MIT License
-
-Copyright (c) 2025 Your Name
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-### .gitignore
-```gitignore
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# poetry
-poetry.lock
-
-# pdm
-.pdm.toml
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-.idea/
-
-# VSCode
-.vscode/
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-```
-
-### MANIFEST.in
-```
-include README.md
-include LICENSE
-include src/py_perf/py.typed
-recursive-exclude tests *
-recursive-exclude .github *
-recursive-exclude docs *
-```
-
