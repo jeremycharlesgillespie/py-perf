@@ -1,6 +1,6 @@
 # PyPerf Default Configuration
 # This file defines the default configuration values for PyPerf
-# These values can be overridden by environment variables or user config files
+# These values can be overridden by user config files
 
 # Core PyPerf Settings
 py_perf:
@@ -8,7 +8,7 @@ py_perf:
   enabled: true
   
   # Debug mode - enables verbose logging
-  debug: true
+  debug: false
   
   # Minimum execution time to track (in seconds)
   # Functions faster than this will be ignored

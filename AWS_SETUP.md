@@ -1,5 +1,17 @@
 # AWS DynamoDB Setup for PyPerf
 
+## Installation with AWS Support
+
+First, ensure you have the necessary dependencies:
+
+```bash
+# Install py-perf with AWS dependencies
+pip install py-perf-jg boto3
+
+# Or install from Test PyPI
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ py-perf-jg boto3
+```
+
 ## Required AWS Role/Policy
 
 To allow PyPerf to upload timing data to DynamoDB, you need to create an IAM role or user with the following permissions:
@@ -14,10 +26,11 @@ To allow PyPerf to upload timing data to DynamoDB, you need to create an IAM rol
             "Effect": "Allow",
             "Action": [
                 "dynamodb:PutItem",
-                "dynamodb:DescribeTable"
+                "dynamodb:DescribeTable",
+                "dynamodb:CreateTable"
             ],
             "Resource": [
-                "arn:aws:dynamodb:*:760761025470:table/py-perf-data"
+                "arn:aws:dynamodb:*:*:table/py-perf-data"
             ]
         }
     ]
@@ -72,28 +85,44 @@ The `py-perf-data` table stores the following data:
 
 ### Configuration Options
 
-You can configure PyPerf's DynamoDB behavior:
+Configure PyPerf's DynamoDB behavior using a `.py-perf.yaml` configuration file:
+
+```yaml
+py_perf:
+  enabled: true
+
+# For local development (no AWS required)
+local:
+  enabled: true  # This disables AWS uploads
+  data_dir: "./perf_data"
+  format: "json"
+
+# For production with AWS DynamoDB
+# local:
+#   enabled: false
+
+aws:
+  region: "us-east-1"
+  table_name: "py-perf-data"
+  auto_create_table: true
+  read_capacity: 5
+  write_capacity: 5
+```
+
+You can also configure PyPerf programmatically:
 
 ```python
 from py_perf import PyPerf
 
-# Default configuration (uploads to DynamoDB)
+# Default configuration (loads .py-perf.yaml automatically)
 perf = PyPerf()
 
-# Disable DynamoDB uploads
-perf = PyPerf(config={'use_dynamodb': False})
-
-# Custom table and region
-perf = PyPerf(config={
-    'dynamodb_table': 'my-custom-table',
-    'aws_region': 'us-east-1'
+# Override with custom AWS settings
+perf = PyPerf({
+    "aws": {
+        "region": "us-east-1",
+        "table_name": "my-custom-table"
+    },
+    "local": {"enabled": False}
 })
 ```
-
-### Testing the Setup
-
-Run your PyPerf application. You should see either:
-- `✓ Successfully uploaded timing data to DynamoDB (ID: xxxxx)` on success
-- `✗ DynamoDB upload failed: [error message]` on failure
-
-The application will still print JSON results to console as a backup regardless of upload status.

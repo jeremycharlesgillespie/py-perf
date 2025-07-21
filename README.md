@@ -2,27 +2,6 @@
 
 ## Project Structure
 
-## Building and Publishing
-
-```bash
-# Build the package
-python -m build
-
-# Upload to PyPI (requires twine and PyPI account)
-pip install twine
-twine upload dist/*
-
-
-# Py-Perf
-
-This library is used to track and represent the performance of Python code that is executed via an easy to install and configure Python library.
-
-## Installation
-
-```bash
-pip install py-perf
-```
-
 ## Quick Start
 
 ### 1. Create Configuration File
@@ -86,20 +65,100 @@ print(f"Tracked {summary['call_count']} function calls")
 - **AWS Mode**: Data is automatically uploaded to DynamoDB when your program exits
 
 **Web Dashboard:**
-Start the included web dashboard to visualize your performance data:
-
-```bash
-# Start the web dashboard
-python manage.py runserver 8000
-```
-
-Then visit http://localhost:8000 to see:
+For visualizing performance data, use the separate [py-perf-viewer](https://github.com/jeremycharlesgillespie/py-perf-viewer) Django dashboard that provides:
 - Performance overview and metrics
 - Function-by-function analysis  
 - Historical trends and comparisons
 - Advanced filtering and search
 
 For AWS integration and production setup, see the Configuration section below.
+
+
+## Building and Publishing
+
+This project includes automated scripts for building and publishing the package with automatic version incrementing.
+
+### Quick Build & Upload
+
+```bash
+# Build and upload in one step (recommended)
+./upload_package.sh
+```
+
+This script will:
+- Automatically increment the version (0.1.4 → 0.1.5)
+- Build the package
+- Validate the package
+- Give you options to upload to Test PyPI or Production PyPI
+- Use your configured API tokens from `.pypirc`
+
+### Build Only
+
+```bash
+# Just build the package (increments version)
+python3 build_package.py
+```
+
+This script will:
+- Automatically increment the version
+- Clean previous builds
+- Build both wheel and source distribution
+- Validate the package
+
+### Manual Build (Advanced)
+
+```bash
+# Traditional manual build (no version increment)
+python -m build
+
+# Manual upload to PyPI
+pip install twine
+twine upload dist/*
+```
+
+### Version Management
+
+- **Automatic**: Both scripts automatically increment version by 0.01 each run
+- **Current version**: Check with `python3 -c "from version_manager import get_current_version; print(get_current_version())"`
+- **Manual increment**: Run `python3 version_manager.py`
+
+### PyPI Configuration
+
+Create a `.pypirc` file in the project root with your API tokens:
+
+```ini
+[distutils]
+index-servers =
+    pypi
+    testpypi
+
+[pypi]
+username = __token__
+password = your-pypi-api-token
+
+[testpypi]
+repository = https://test.pypi.org/legacy/
+username = __token__
+password = your-testpypi-api-token
+```
+
+### Testing Your Package
+
+Test on Test PyPI first (recommended):
+1. Run `./upload_package.sh` and choose option 1 (Test PyPI)
+2. Install and test: `pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ py-perf-jg`
+3. If everything works, upload to production PyPI
+
+
+# Py-Perf
+
+This library is used to track and represent the performance of Python code that is executed via an easy to install and configure Python library.
+
+## Installation
+
+```bash
+pip install py-perf
+```
 
 ## Development
 
@@ -248,24 +307,9 @@ deactivate
 
 ## Web Dashboard
 
-PyPerf includes a Django web dashboard for visualizing and analyzing performance data from DynamoDB.
+For a comprehensive web dashboard to visualize and analyze your py-perf performance data, use the separate [py-perf-viewer](https://github.com/jeremycharlesgillespie/py-perf-viewer) project.
 
-### Starting the Web Dashboard
-
-```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run database migrations (first time only)
-python manage.py migrate
-
-# Start the Django development server
-python manage.py runserver 8000
-```
-
-The dashboard will be available at: http://127.0.0.1:8000
-
-### Web Dashboard Features
+### py-perf-viewer Features
 
 - **Performance Overview**: Key metrics, slowest functions, most active hosts
 - **Advanced Filtering**: Filter by hostname, date range, function name, session ID
@@ -274,57 +318,20 @@ The dashboard will be available at: http://127.0.0.1:8000
 - **REST API**: Programmatic access to performance data
 - **Real-time Data**: Automatically displays latest performance data from DynamoDB
 
-### Testing
-
-PyPerf includes two comprehensive test suites for the web dashboard:
-
-#### 1. Integration Tests (Requires DynamoDB Connection)
-
-Run the full integration test suite that tests with a real Django server and DynamoDB:
+### Installation
 
 ```bash
-# Activate virtual environment
-source venv/bin/activate
+# Install the dashboard separately
+pip install py-perf-viewer
 
-# Run integration test suite
-python test_django_server.py
+# Or clone and run the standalone project
+git clone https://github.com/jeremycharlesgillespie/py-perf-viewer
+cd py-perf-viewer
+pip install -r requirements.txt
+python start_viewer.py
 ```
 
-The integration test suite will:
-- Automatically start/stop the Django server
-- Test all web pages and API endpoints with real data
-- Verify response times and error handling
-- Test function analysis and record detail pages
-- Report detailed results with 100% automation
-
-#### 2. Unit Tests (Offline, No External Dependencies)
-
-Run the offline unit test suite with mocked dependencies:
-
-```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Run offline unit tests
-python manage.py test pyperfweb.dashboard.tests
-
-# Run with verbose output
-python manage.py test pyperfweb.dashboard.tests -v 2
-```
-
-The unit test suite will:
-- Test all 7 view functions with mocked data
-- Verify error handling and edge cases
-- Test API endpoints with JSON validation
-- Work completely offline without DynamoDB
-- Cover comprehensive scenarios including empty databases and malformed inputs
-
-#### Test Coverage Summary
-
-- **Integration Tests**: 25 tests covering real server functionality
-- **Unit Tests**: 18 tests covering all views with mocked dependencies
-- **Combined Coverage**: All views, error scenarios, and edge cases tested
-- **Offline Capability**: Unit tests run without internet or AWS connection
+Visit the [py-perf-viewer repository](https://github.com/jeremycharlesgillespie/py-perf-viewer) for detailed setup and usage instructions.
 
 ### Running PyPerf Library Tests
 

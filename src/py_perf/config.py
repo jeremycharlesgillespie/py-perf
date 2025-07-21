@@ -58,15 +58,44 @@ class PyPerfConfig:
         return config
     
     def _load_default_config(self) -> DictConfig:
-        """Load default configuration from config/default.yaml."""
+        """Load default configuration from default.yaml in package."""
         
-        # Find the config directory relative to this file
+        # Find the default.yaml file in the same package directory
         current_dir = Path(__file__).parent
-        config_file = current_dir.parent.parent / "config" / "default.yaml"
+        config_file = current_dir / "default.yaml"
         
         if not config_file.exists():
             logger.warning(f"Default config file not found: {config_file}")
-            return OmegaConf.create({})
+            # Fallback to creating a minimal default config
+            return OmegaConf.create({
+                "py_perf": {
+                    "enabled": True,
+                    "debug": False,
+                    "min_execution_time": 0.001,
+                    "max_tracked_calls": 10000
+                },
+                "local": {
+                    "enabled": False,
+                    "data_dir": "./perf_data",
+                    "format": "json",
+                    "max_records": 1000
+                },
+                "aws": {
+                    "region": "us-east-1",
+                    "table_name": "py-perf-data",
+                    "auto_create_table": True
+                },
+                "upload": {
+                    "strategy": "on_exit"
+                },
+                "filters": {
+                    "exclude_modules": ["boto3", "botocore", "urllib3", "requests", "logging"],
+                    "include_modules": [],
+                    "exclude_functions": ["^_.*", "^test_.*"],
+                    "include_functions": [],
+                    "track_arguments": False
+                }
+            })
         
         try:
             config = OmegaConf.load(config_file)
@@ -207,8 +236,8 @@ class PyPerfConfig:
             issues.append(f"Invalid upload strategy: {strategy}. Must be one of: {valid_strategies}")
         
         # Validate minimum execution time
-        min_time = self.get("py_perf.min_execution_time")
-        if min_time < 0:
+        min_time = self.get("py_perf.min_execution_time", 0.001)
+        if min_time is not None and min_time < 0:
             issues.append("Minimum execution time cannot be negative")
         
         return issues

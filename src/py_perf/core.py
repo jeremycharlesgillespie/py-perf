@@ -17,9 +17,7 @@ except ImportError:
     BOTO3_AVAILABLE = False
 
 # Import our configuration system
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / "py_perf"))
-from config import get_config, PyPerfConfig
+from .config import get_config, PyPerfConfig
 
 
 class TimingResult:
@@ -98,7 +96,7 @@ class PyPerf:
     def _init_dynamodb(self) -> None:
         """Initialize DynamoDB client."""
         if not BOTO3_AVAILABLE:
-            self.logger.error("boto3 not available, cannot use DynamoDB. Set PY_PERF_LOCAL_ENABLED=true for local mode")
+            self.logger.error("boto3 not available, cannot use DynamoDB. Set py_perf.enabled=false or local.enabled=true for local mode")
             return
         
         try:
