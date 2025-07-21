@@ -110,6 +110,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Sensitive configuration files
+.pypirc
+
 # Spyder project settings
 .spyderproject
 .spyproject
