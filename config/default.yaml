@@ -4,7 +4,7 @@
 
 # Core PyPerf Settings
 py_perf:
-  # Whether PyPerf is enabled (can be disabled for production)
+  # Whether PyPerf is enabled
   enabled: true
   
   # Debug mode - enables verbose logging

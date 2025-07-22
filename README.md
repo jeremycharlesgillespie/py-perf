@@ -333,6 +333,32 @@ python start_viewer.py
 
 Visit the [py-perf-viewer repository](https://github.com/jeremycharlesgillespie/py-perf-viewer) for detailed setup and usage instructions.
 
+### Dashboard Screenshots
+
+Here's what you can expect when using the py-perf-viewer web dashboard to visualize your py-perf performance data:
+
+#### Main Dashboard Overview
+![Dashboard Home](https://raw.githubusercontent.com/jeremycharlesgillespie/py-perf-viewer/main/screenshots/01_dashboard_home.png)
+*Complete performance overview with key metrics, slowest functions, and recent activity*
+
+#### Performance Records Browser
+![Performance Records](https://raw.githubusercontent.com/jeremycharlesgillespie/py-perf-viewer/main/screenshots/02_performance_records.png)
+*Browse and filter all performance records with advanced search capabilities*
+
+#### Detailed Record Analysis
+![Record Detail](https://raw.githubusercontent.com/jeremycharlesgillespie/py-perf-viewer/main/screenshots/03_record_detail.png)
+*Detailed breakdown of individual performance records showing function-level metrics*
+
+#### Function Performance Analysis
+![Function Analysis](https://raw.githubusercontent.com/jeremycharlesgillespie/py-perf-viewer/main/screenshots/04_function_analysis.png)
+*Cross-record analysis of specific functions with performance trends over time*
+
+#### REST API Access
+The dashboard also provides JSON API endpoints for programmatic access to your py-perf data:
+
+![API Metrics](https://raw.githubusercontent.com/jeremycharlesgillespie/py-perf-viewer/main/screenshots/05_api_metrics.png)
+*Example API response showing performance metrics in JSON format for integration with other tools*
+
 ### Running PyPerf Library Tests
 
 ```bash
