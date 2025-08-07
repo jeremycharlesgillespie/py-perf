@@ -1,6 +1,17 @@
-# Python Library PyPI Boilerplate
+# py-perf
 
-## Project Structure
+High-performance Python library for automated performance monitoring and system metrics collection.
+
+## Overview
+
+py-perf provides automated performance monitoring for Python applications with:
+
+- **Function Performance Tracking**: Automatic timing and profiling of Python functions
+- **System Metrics Collection**: Real-time CPU, memory, and process monitoring  
+- **1-minute Data Intervals**: Optimized for production with efficient 1-minute sampling
+- **AWS Integration**: Automatic DynamoDB uploads with 30-day TTL
+- **Web Dashboard**: Comprehensive visualization via py-perf-viewer
+- **Zero Configuration**: Works out-of-the-box with sensible defaults
 
 ## Quick Start
 
@@ -410,15 +421,63 @@ The dashboard also provides JSON API endpoints for programmatic access:
 }
 ```
 
-### Running PyPerf Library Tests
+## System Monitoring Daemon
+
+py-perf includes a background daemon for continuous system monitoring:
+
+### Installation
 
 ```bash
-# Activate virtual environment
-source venv/bin/activate
+# Install the daemon
+sudo cp py-perf-daemon /usr/local/bin/
+sudo chmod +x /usr/local/bin/py-perf-daemon
 
-# Run PyPerf library tests
-python tester.py
+# Create configuration directory
+mkdir -p ~/.config/py-perf/
+cp config/daemon.yaml.example ~/.config/py-perf/daemon.yaml
+
+# Edit configuration (set AWS region, table name, etc.)
+nano ~/.config/py-perf/daemon.yaml
 ```
+
+### Configuration
+
+The daemon configuration supports:
+
+```yaml
+daemon:
+  sample_interval: 60.0  # Collect data every minute
+  max_samples: 1        # Upload immediately (no batching)
+  enable_dynamodb_upload: true
+  dynamodb_table_name: py-perf-system-v2  # Optimized table structure
+  dynamodb_region: us-east-1
+
+monitoring:
+  auto_track_python: true
+  cpu_alert_threshold: 90
+  memory_alert_threshold: 85
+```
+
+### Running the Daemon
+
+```bash
+# Start daemon (foreground)
+py-perf-daemon -c ~/.config/py-perf/daemon.yaml start
+
+# Check status
+py-perf-daemon -c ~/.config/py-perf/daemon.yaml status
+
+# Stop daemon  
+py-perf-daemon -c ~/.config/py-perf/daemon.yaml stop
+```
+
+### Optimized Data Collection
+
+The system now uses:
+- **1-minute intervals**: Efficient sampling every 60 seconds
+- **Optimized storage**: Frontend-ready format with hour-based partitioning
+- **Automatic TTL**: Data expires after 30 days
+- **Real-time access**: Sub-minute latency for dashboard updates
 
 ### Code Formatting
 
