@@ -1,0 +1,33 @@
+[Unit]
+Description=py-perf System Monitoring Daemon
+Documentation=https://github.com/jeremycharlesgillespie/py-perf
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/py-perf-daemon start
+ExecStop=/usr/local/bin/py-perf-daemon stop
+ExecReload=/usr/local/bin/py-perf-daemon restart
+PIDFile=/var/run/py-perf-daemon.pid
+Restart=on-failure
+RestartSec=10
+
+# Security settings
+User=py-perf
+Group=py-perf
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/py-perf /var/log
+RuntimeDirectory=py-perf
+StateDirectory=py-perf
+LogsDirectory=py-perf
+
+# Resource limits
+LimitNOFILE=4096
+CPUQuota=20%
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
