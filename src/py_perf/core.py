@@ -18,6 +18,7 @@ except ImportError:
 
 # Import our configuration system
 from .config import get_config, PyPerfConfig
+from .daemon_client import DaemonClient, EnhancedTimingResult
 
 
 class TimingResult:
@@ -49,6 +50,15 @@ class PyPerf:
         # Initialize core state
         self.timing_results: List[TimingResult] = []
         self.session_id = str(uuid.uuid4())
+        
+        # Initialize daemon client for system metrics
+        self.daemon_client = None
+        if self.config.get("py_perf.enable_system_monitoring", True):
+            self.daemon_client = DaemonClient()
+            if self.daemon_client.is_daemon_running():
+                self.logger.info("Connected to py-perf-daemon for system metrics")
+            else:
+                self.logger.debug("py-perf-daemon not running, system metrics disabled")
         
         # Check if PyPerf is enabled
         if not self.config.is_enabled():
@@ -201,13 +211,26 @@ class PyPerf:
                     if should_store_args is None:
                         should_store_args = self.config.get("filters.track_arguments", False)
                     
-                    timing_result = TimingResult(
-                        function_name=f.__name__,
-                        wall_time=wall_time,
-                        cpu_time=cpu_time,
-                        args=args if should_store_args else (),
-                        kwargs=kwargs if should_store_args else {}
-                    )
+                    # Create enhanced timing result with potential system context
+                    if self.daemon_client and self.daemon_client.is_daemon_running():
+                        timing_result = EnhancedTimingResult(
+                            function_name=f.__name__,
+                            wall_time=wall_time,
+                            cpu_time=cpu_time,
+                            args=args if should_store_args else (),
+                            kwargs=kwargs if should_store_args else {},
+                            timestamp=wall_start + wall_time  # End time of function execution
+                        )
+                        # Add system context from daemon
+                        timing_result.add_system_context(self.daemon_client)
+                    else:
+                        timing_result = TimingResult(
+                            function_name=f.__name__,
+                            wall_time=wall_time,
+                            cpu_time=cpu_time,
+                            args=args if should_store_args else (),
+                            kwargs=kwargs if should_store_args else {}
+                        )
                     
                     # Check max tracked calls limit
                     max_calls = self.config.get("py_perf.max_tracked_calls", 10000)
@@ -529,7 +552,7 @@ class PyPerf:
     
     def get_config_info(self) -> Dict[str, Any]:
         """Get current configuration information for debugging."""
-        return {
+        config_info = {
             "enabled": self.config.is_enabled(),
             "debug": self.config.is_debug(),
             "local_only": self.config.is_local_only(),
@@ -539,4 +562,97 @@ class PyPerf:
             "storage_type": "local" if self.config.is_local_only() else "dynamodb",
             "session_id": self.session_id,
             "current_tracked_calls": len(self.timing_results)
+        }
+        
+        # Add daemon information
+        if self.daemon_client:
+            daemon_status = self.daemon_client.get_daemon_status()
+            config_info["daemon"] = daemon_status
+        
+        return config_info
+    
+    def get_enhanced_summary(self) -> Dict[str, Any]:
+        """Get enhanced summary with system context from daemon."""
+        summary = self.get_summary()
+        
+        if not self.daemon_client or not self.daemon_client.is_daemon_running():
+            return summary
+        
+        # Add system metrics correlation
+        enhanced_calls = []
+        for result in self.timing_results:
+            if hasattr(result, 'to_dict'):
+                # Enhanced timing result with system context
+                enhanced_calls.append(result.to_dict())
+            else:
+                # Regular timing result
+                enhanced_calls.append({
+                    'function_name': result.function_name,
+                    'wall_time': result.wall_time,
+                    'cpu_time': result.cpu_time,
+                    'timestamp': result.timestamp,
+                })
+        
+        summary['enhanced_calls'] = enhanced_calls
+        summary['system_monitoring_enabled'] = True
+        
+        return summary
+    
+    def get_system_correlation_report(self) -> Dict[str, Any]:
+        """Generate a report correlating function performance with system metrics."""
+        if not self.daemon_client or not self.daemon_client.is_daemon_running():
+            return {"error": "System monitoring daemon not available"}
+        
+        if not self.timing_results:
+            return {"error": "No timing data available"}
+        
+        # Get time range for system metrics
+        timestamps = [getattr(r, 'timestamp', 0) for r in self.timing_results]
+        if not timestamps:
+            return {"error": "No timestamps available"}
+        
+        start_time = min(timestamps)
+        end_time = max(timestamps)
+        
+        # Get system metrics for the time range
+        system_metrics = self.daemon_client.get_metrics_range(start_time, end_time)
+        
+        if not system_metrics:
+            return {"error": "No system metrics available for time range"}
+        
+        # Analyze correlations
+        high_cpu_functions = []
+        high_memory_functions = []
+        
+        for result in self.timing_results:
+            if hasattr(result, 'system_context') and result.system_context:
+                ctx = result.system_context
+                if ctx.cpu_percent > 80:  # High CPU usage
+                    high_cpu_functions.append({
+                        'function_name': result.function_name,
+                        'wall_time': result.wall_time,
+                        'cpu_percent': ctx.cpu_percent,
+                        'timestamp': result.timestamp
+                    })
+                
+                if ctx.memory_percent > 80:  # High memory usage
+                    high_memory_functions.append({
+                        'function_name': result.function_name,
+                        'wall_time': result.wall_time,
+                        'memory_percent': ctx.memory_percent,
+                        'timestamp': result.timestamp
+                    })
+        
+        return {
+            'time_range': {
+                'start': start_time,
+                'end': end_time,
+                'duration': end_time - start_time
+            },
+            'system_metrics_count': len(system_metrics),
+            'high_cpu_functions': high_cpu_functions,
+            'high_memory_functions': high_memory_functions,
+            'avg_system_cpu': sum(m.cpu_percent for m in system_metrics) / len(system_metrics),
+            'avg_system_memory': sum(m.memory_percent for m in system_metrics) / len(system_metrics),
+            'system_monitoring_enabled': True
         }
