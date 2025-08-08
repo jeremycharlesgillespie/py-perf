@@ -30,6 +30,10 @@ class OptimizedSystemStorage:
         self.dynamodb = boto3.client('dynamodb', region_name=region)
         self.table_resource = boto3.resource('dynamodb', region_name=region).Table(table_name)
         
+        # Registry table for persistent system tracking
+        self.registry_table_name = "py-perf-systems-registry"
+        self.registry_table = boto3.resource('dynamodb', region_name=region).Table(self.registry_table_name)
+        
         # Ensure table exists
         self._ensure_table_exists()
     
@@ -138,12 +142,61 @@ class OptimizedSystemStorage:
             # Store in DynamoDB
             self.table_resource.put_item(Item=dynamodb_item)
             
+            # Update registry with this system
+            self._update_system_registry(hostname, system_metrics)
+            
             logger.debug(f"Stored minute sample for {hostname} at {minute_timestamp}")
             return True
             
         except Exception as e:
             logger.error(f"Failed to store minute sample for {hostname}: {e}")
             return False
+    
+    def _update_system_registry(self, hostname: str, system_metrics: Dict[str, Any]) -> None:
+        """Update the system registry with latest info for this hostname."""
+        try:
+            current_time = time.time()
+            
+            # Get system info - you can expand this with more details
+            import platform
+            system_info = {
+                'hostname': hostname,
+                'last_seen': Decimal(str(current_time)),
+                'last_update': datetime.utcnow().isoformat(),
+                'cpu_percent': Decimal(str(round(system_metrics.get('cpu_percent', 0), 1))),
+                'memory_percent': Decimal(str(round(system_metrics.get('memory_percent', 0), 1))),
+                'status': 'online',
+                'first_seen': Decimal(str(current_time)),  # Will be preserved on updates
+                'platform': platform.system() if 'platform' in dir() else 'Unknown',
+                'active': True  # Can be set to False to hide from dashboard
+            }
+            
+            # Use UpdateItem to preserve first_seen if it exists
+            self.registry_table.update_item(
+                Key={'hostname': hostname},
+                UpdateExpression='SET last_seen = :last_seen, last_update = :last_update, '
+                                'cpu_percent = :cpu, memory_percent = :mem, #status = :status, '
+                                'platform = :platform, active = :active, '
+                                'first_seen = if_not_exists(first_seen, :first_seen)',
+                ExpressionAttributeNames={
+                    '#status': 'status'  # status is a reserved word
+                },
+                ExpressionAttributeValues={
+                    ':last_seen': system_info['last_seen'],
+                    ':last_update': system_info['last_update'],
+                    ':cpu': system_info['cpu_percent'],
+                    ':mem': system_info['memory_percent'],
+                    ':status': system_info['status'],
+                    ':platform': system_info['platform'],
+                    ':active': system_info['active'],
+                    ':first_seen': system_info['first_seen']
+                }
+            )
+            logger.debug(f"Updated registry for {hostname}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to update registry for {hostname}: {e}")
+            # Don't fail the main operation if registry update fails
     
     def _convert_to_dynamodb_item(self, record: Dict[str, Any]) -> Dict[str, Any]:
         """Convert record to DynamoDB item format."""
