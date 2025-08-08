@@ -286,8 +286,8 @@ class PyPerfDaemon:
                         
                         # Upload to DynamoDB if enabled
                         if self.dynamodb_service:
-                            import socket
-                            hostname = socket.gethostname()
+                            from py_perf.hostname_utils import get_normalized_hostname
+                            hostname = get_normalized_hostname()
                             try:
                                 if self.dynamodb_service.upload_system_metrics(metrics_buffer, hostname):
                                     self.logger.info(f"Successfully uploaded {len(metrics_buffer)} metrics to DynamoDB with compression")

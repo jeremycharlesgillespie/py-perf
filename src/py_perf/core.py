@@ -139,6 +139,11 @@ class PyPerf:
             self.logger.error(f"Could not initialize DynamoDB client: {e}")
             self.dynamodb_client = None
     
+    def _get_normalized_hostname(self) -> str:
+        """Get normalized hostname for consistent system identification."""
+        from .hostname_utils import get_normalized_hostname
+        return get_normalized_hostname()
+    
     def _create_dynamodb_table(self) -> None:
         """Create DynamoDB table with proper schema."""
         try:
@@ -411,7 +416,7 @@ class PyPerf:
                 'id': {'N': str(record_id)},
                 'session_id': {'S': self.session_id},
                 'timestamp': {'N': str(time.time())},
-                'hostname': {'S': os.uname().nodename if hasattr(os, 'uname') else 'unknown'},
+                'hostname': {'S': self._get_normalized_hostname()},
                 'data': {'S': json.dumps(results)}
             }
             
@@ -463,7 +468,7 @@ class PyPerf:
                         "id": timestamp * 1000000,
                         "session_id": self.session_id,
                         "timestamp": time.time(),
-                        "hostname": os.uname().nodename if hasattr(os, 'uname') else 'unknown',
+                        "hostname": self._get_normalized_hostname(),
                         "data": results
                     }, f, indent=2)
             
