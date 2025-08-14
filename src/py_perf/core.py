@@ -19,6 +19,8 @@ except ImportError:
 # Import our configuration system
 from .config import get_config, PyPerfConfig
 from .daemon_client import DaemonClient, EnhancedTimingResult
+from .exception_handler import enable_enhanced_exceptions, disable_enhanced_exceptions
+from .failure_capture import capture_failure, log_failure
 
 
 class TimingResult:
@@ -66,48 +68,102 @@ class PyPerf:
             return
         
         # Validate configuration
-        issues = self.config.validate()
-        if issues:
-            self.logger.warning(f"Configuration issues found: {issues}")
+        try:
+            issues = self.config.validate()
+            if issues:
+                self.logger.warning(f"Configuration issues found: {issues}")
+        except Exception as e:
+            capture_failure("Configuration validation", e, {
+                "config_override": config_override
+            })
         
         # Initialize storage backend
         self._init_storage()
         
+        # Initialize enhanced exception handling if enabled
+        try:
+            self._init_exception_handling()
+        except Exception as e:
+            capture_failure("Enhanced exception handling initialization", e)
+            # Continue without enhanced exceptions if it fails
+        
         # Register exit handler for automatic upload
-        upload_strategy = self.config.get("upload.strategy", "on_exit")
-        if upload_strategy == "on_exit":
-            atexit.register(self._upload_results)
+        try:
+            upload_strategy = self.config.get("upload.strategy", "on_exit")
+            if upload_strategy == "on_exit":
+                atexit.register(self._upload_results)
+        except Exception as e:
+            capture_failure("Exit handler registration", e, {
+                "upload_strategy": upload_strategy
+            })
         
         self.logger.debug(f"PyPerf initialized with session_id: {self.session_id}")
     
+    def _init_exception_handling(self) -> None:
+        """Initialize enhanced exception handling if enabled."""
+        if self.config.get("py_perf.enable_enhanced_exceptions", True):
+            max_value_length = self.config.get("py_perf.exception_max_value_length", 1000)
+            max_collection_items = self.config.get("py_perf.exception_max_collection_items", 10)
+            show_globals = self.config.get("py_perf.exception_show_globals", True)
+            
+            enable_enhanced_exceptions(
+                max_value_length=max_value_length,
+                max_collection_items=max_collection_items,
+                show_globals=show_globals
+            )
+            self.logger.debug("Enhanced exception handling enabled")
+        else:
+            self.logger.debug("Enhanced exception handling disabled by configuration")
+    
     def _init_storage(self) -> None:
-        """Initialize storage backend (DynamoDB or local)."""
+        """Initialize storage backend (DynamoDB or local) with zero-setup fallback."""
         self.dynamodb_client = None
         self.local_storage = None
         
-        if self.config.is_local_only():
-            self._init_local_storage()
-        else:
-            self._init_dynamodb()
+        try:
+            if self.config.is_local_only():
+                self._init_local_storage()
+            else:
+                # Try DynamoDB first, fall back to local if it fails
+                try:
+                    self._init_dynamodb()
+                except Exception as e:
+                    capture_failure("DynamoDB initialization", e, {
+                        "fallback": "local storage",
+                        "aws_config": self.config.get_aws_config() if hasattr(self.config, 'get_aws_config') else None
+                    })
+                    self.logger.info("Falling back to local storage due to DynamoDB initialization failure")
+                    self._init_local_storage()
+        except Exception as e:
+            capture_failure("Storage initialization", e)
+            # Continue without storage if all else fails
+            self.logger.warning("PyPerf will continue without persistent storage")
     
     def _init_local_storage(self) -> None:
-        """Initialize local storage."""
-        data_dir = Path(self.config.get("local.data_dir", "./perf_data"))
-        data_dir.mkdir(parents=True, exist_ok=True)
-        
-        storage_format = self.config.get("local.format", "json")
-        self.local_storage = {
-            "data_dir": data_dir,
-            "format": storage_format
-        }
-        
-        self.logger.debug(f"Local storage initialized: {data_dir}")
+        """Initialize local storage with error handling."""
+        try:
+            data_dir = Path(self.config.get("local.data_dir", "./perf_data"))
+            data_dir.mkdir(parents=True, exist_ok=True)
+            
+            storage_format = self.config.get("local.format", "json")
+            self.local_storage = {
+                "data_dir": data_dir,
+                "format": storage_format
+            }
+            
+            self.logger.debug(f"Local storage initialized: {data_dir}")
+        except Exception as e:
+            capture_failure("Local storage initialization", e, {
+                "data_dir": self.config.get("local.data_dir", "./perf_data"),
+                "format": self.config.get("local.format", "json")
+            })
+            # Continue without local storage if directory creation fails
+            self.local_storage = None
     
     def _init_dynamodb(self) -> None:
-        """Initialize DynamoDB client."""
+        """Initialize DynamoDB client with comprehensive error handling."""
         if not BOTO3_AVAILABLE:
-            self.logger.error("boto3 not available, cannot use DynamoDB. Set py_perf.enabled=false or local.enabled=true for local mode")
-            return
+            raise ImportError("boto3 not available - install with 'pip install boto3' or use local storage")
         
         try:
             aws_config = self.config.get_aws_config()
@@ -201,7 +257,6 @@ class PyPerf:
                 
                 try:
                     result = f(*args, **kwargs)
-                    return result
                 finally:
                     wall_time = time.perf_counter() - wall_start
                     cpu_time = time.process_time() - cpu_start
@@ -209,7 +264,7 @@ class PyPerf:
                     # Check minimum execution time threshold
                     min_time = self.config.get("py_perf.min_execution_time", 0.001)
                     if wall_time < min_time:
-                        return
+                        return result  # Return the result, don't track timing
                     
                     # Check if we should store arguments
                     should_store_args = store_args
@@ -243,6 +298,8 @@ class PyPerf:
                         self.timing_results.append(timing_result)
                     else:
                         self.logger.warning(f"Max tracked calls limit ({max_calls}) reached")
+                
+                return result  # Return the function result
             
             return wrapper
         
@@ -520,18 +577,38 @@ class PyPerf:
         if not self.timing_results:
             return
             
-        results = self.build_json_results()
-        
-        # Upload based on configuration
-        uploaded = False
-        if self.config.is_local_only():
-            uploaded = self._save_to_local_storage(results)
-        else:
-            uploaded = self._upload_to_dynamodb(results)
-        
-        # Log results if debug mode is enabled
-        if self.config.is_debug():
-            self.logger.debug(f"Performance results: {json.dumps(results, indent=2)}")
+        try:
+            results = self.build_json_results()
+            
+            # Upload based on configuration
+            uploaded = False
+            try:
+                if self.config.is_local_only() or not self.dynamodb_client:
+                    uploaded = self._save_to_local_storage(results)
+                else:
+                    uploaded = self._upload_to_dynamodb(results)
+            except Exception as e:
+                capture_failure("Results upload", e, {
+                    "local_only": self.config.is_local_only(),
+                    "has_dynamodb_client": bool(self.dynamodb_client),
+                    "results_count": len(self.timing_results)
+                })
+                # Try fallback storage if primary fails
+                if not uploaded and self.local_storage:
+                    try:
+                        uploaded = self._save_to_local_storage(results)
+                        self.logger.info("Used local storage fallback for results upload")
+                    except Exception as fallback_error:
+                        capture_failure("Fallback local storage upload", fallback_error)
+            
+            # Log results if debug mode is enabled
+            if self.config.is_debug():
+                self.logger.debug(f"Performance results: {json.dumps(results, indent=2)}")
+                
+        except Exception as e:
+            capture_failure("Results processing", e, {
+                "timing_results_count": len(self.timing_results)
+            })
     
     def output_results(self) -> None:
         """Manually output/upload results based on configuration."""
@@ -661,3 +738,21 @@ class PyPerf:
             'avg_system_memory': sum(m.memory_percent for m in system_metrics) / len(system_metrics),
             'system_monitoring_enabled': True
         }
+    
+    def enable_enhanced_exceptions(self, max_value_length: int = 1000, 
+                                  max_collection_items: int = 10,
+                                  show_globals: bool = True) -> None:
+        """Manually enable enhanced exception handling with variable inspection.
+        
+        Args:
+            max_value_length: Maximum length for string representations
+            max_collection_items: Maximum items to show from collections
+            show_globals: Whether to show global variables in traces
+        """
+        enable_enhanced_exceptions(max_value_length, max_collection_items, show_globals)
+        self.logger.info("Enhanced exception handling manually enabled")
+    
+    def disable_enhanced_exceptions(self) -> None:
+        """Manually disable enhanced exception handling."""
+        disable_enhanced_exceptions()
+        self.logger.info("Enhanced exception handling manually disabled")
