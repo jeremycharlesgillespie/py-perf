@@ -332,7 +332,7 @@ class EnhancedExceptionHandler:
         try:
             # Get the failing frame (last frame where the exception occurred)
             if not tb_frames:
-                summary.append("❌ The code crashed, but no detailed information is available.")
+                summary.append("[ERROR] The code crashed, but no detailed information is available.")
                 return summary
             
             failing_frame = tb_frames[-1]
@@ -345,61 +345,61 @@ class EnhancedExceptionHandler:
             code_line = frame_info.code_context[0].strip() if frame_info.code_context else "N/A"
             
             # Start summary
-            summary.append(f"❌ THE CODE FAILED")
+            summary.append(f"[FAILURE] THE CODE FAILED")
             summary.append("")
             
             # Where it failed
             if func_name == "<module>":
-                summary.append(f"📍 Location: Line {line_num} in the main script")
+                summary.append(f"[LOCATION] Line {line_num} in the main script")
             else:
-                summary.append(f"📍 Location: Line {line_num} in function '{func_name}'")
+                summary.append(f"[LOCATION] Line {line_num} in function '{func_name}'")
             
-            summary.append(f"📁 File: {filename}")
+            summary.append(f"[FILE] {filename}")
             summary.append("")
             
             # What failed
-            summary.append(f"💥 Error Type: {exc_type.__name__}")
+            summary.append(f"[ERROR TYPE] {exc_type.__name__}")
             
             # Explain common error types in plain language
             error_explanation = self._explain_error_type(exc_type.__name__, str(exc_value))
-            summary.append(f"📝 What this means: {error_explanation}")
+            summary.append(f"[EXPLANATION] {error_explanation}")
             summary.append("")
             
             # The problematic code
-            summary.append(f"🔍 The problematic code line:")
+            summary.append(f"[CODE] The problematic code line:")
             summary.append(f"   {code_line}")
             summary.append("")
             
             # Show the variables involved
             local_vars = self.get_frame_locals(failing_frame)
             if local_vars:
-                summary.append("📊 Values of variables on this line:")
+                summary.append("[VARIABLES] Values of variables on this line:")
                 
                 # Try to identify variables that appear in the code line
                 variables_in_line = self._find_variables_in_code(code_line, local_vars)
                 
                 if variables_in_line:
                     for var_name, var_value in variables_in_line.items():
-                        summary.append(f"   • {var_name} = {var_value}")
+                        summary.append(f"   - {var_name} = {var_value}")
                 else:
                     # Show first few variables if we can't identify specific ones
                     shown_count = 0
                     for var_name, var_value in sorted(local_vars.items()):
                         if shown_count >= 3:  # Limit to 3 variables
                             break
-                        summary.append(f"   • {var_name} = {var_value}")
+                        summary.append(f"   - {var_name} = {var_value}")
                         shown_count += 1
                 summary.append("")
             
             # Add suggestion for next steps
-            summary.append("💡 To fix this:")
+            summary.append("[SUGGESTION] To fix this:")
             suggestion = self._get_fix_suggestion(exc_type.__name__, code_line, local_vars)
             summary.append(f"   {suggestion}")
             summary.append("")
             
             # Add call chain if there are multiple frames
             if len(tb_frames) > 1:
-                summary.append("📋 How we got here (call chain):")
+                summary.append("[CALL CHAIN] How we got here:")
                 for i, frame in enumerate(tb_frames):
                     frame_info = inspect.getframeinfo(frame)
                     func_name = frame_info.function
@@ -410,9 +410,9 @@ class EnhancedExceptionHandler:
                 summary.append("")
                 
         except Exception as e:
-            summary.append(f"❌ The code failed with a {exc_type.__name__} error.")
-            summary.append(f"📝 Error message: {exc_value}")
-            summary.append(f"⚠️  Could not generate detailed summary: {e}")
+            summary.append(f"[ERROR] The code failed with a {exc_type.__name__} error.")
+            summary.append(f"[MESSAGE] Error message: {exc_value}")
+            summary.append(f"[WARNING] Could not generate detailed summary: {e}")
         
         return summary
     

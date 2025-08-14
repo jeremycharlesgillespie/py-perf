@@ -175,13 +175,13 @@ class FailureCapture:
             output.append("")
             
             # What failed
-            output.append(f"🚨 Operation: {operation}")
-            output.append(f"💥 Error Type: {type(error).__name__}")
-            output.append(f"📝 Error Message: {str(error)}")
+            output.append(f"[OPERATION] {operation}")
+            output.append(f"[ERROR TYPE] {type(error).__name__}")
+            output.append(f"[ERROR MESSAGE] {str(error)}")
             output.append("")
             
             # Where it failed
-            output.append(f"📍 Location:")
+            output.append(f"[LOCATION]:")
             output.append(f"  Function: {context['function']}")
             output.append(f"  File: {context['filename']}")
             output.append(f"  Line: {context['line_number']}")
@@ -189,7 +189,7 @@ class FailureCapture:
             
             # Context variables
             if context['local_vars']:
-                output.append("📊 Local Variables:")
+                output.append("[LOCAL VARIABLES]:")
                 for var_name in sorted(context['local_vars'].keys()):
                     var_value = context['local_vars'][var_name]
                     output.append(f"  {var_name} = {var_value}")
@@ -197,28 +197,28 @@ class FailureCapture:
             
             # Additional context if provided
             if additional_context:
-                output.append("🔍 Additional Context:")
+                output.append("[ADDITIONAL CONTEXT]:")
                 for key, value in additional_context.items():
                     formatted_value = self.format_value(value)
                     output.append(f"  {key} = {formatted_value}")
                 output.append("")
             
             # Timestamp
-            output.append(f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(context['timestamp']))}")
+            output.append(f"[TIMESTAMP] {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(context['timestamp']))}")
             output.append("")
             
             # Brief summary
             output.append("=" * 80)
             output.append("BRIEF SUMMARY")
             output.append("=" * 80)
-            output.append(f"❌ OPERATION FAILED: {operation}")
+            output.append(f"[OPERATION FAILED] {operation}")
             output.append("")
-            output.append(f"💥 Error: {type(error).__name__}")
-            output.append(f"📝 What this means: {self._explain_error(error)}")
+            output.append(f"[ERROR] {type(error).__name__}")
+            output.append(f"[EXPLANATION] {self._explain_error(error)}")
             output.append("")
-            output.append(f"📍 Location: {context['function']}() in {context['filename']}:{context['line_number']}")
+            output.append(f"[LOCATION] {context['function']}() in {context['filename']}:{context['line_number']}")
             output.append("")
-            output.append("💡 This failure was captured for debugging purposes.")
+            output.append("[NOTE] This failure was captured for debugging purposes.")
             output.append("   The operation will continue with fallback behavior.")
             output.append("=" * 80)
             
