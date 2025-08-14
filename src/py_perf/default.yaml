@@ -16,6 +16,18 @@ py_perf:
   
   # Maximum number of function calls to track per session
   max_tracked_calls: 10000
+  
+  # Enhanced exception handling with variable inspection
+  enable_enhanced_exceptions: true
+  
+  # Maximum length for string representations in exception traces
+  exception_max_value_length: 1000
+  
+  # Maximum number of items to show from collections in exception traces
+  exception_max_collection_items: 10
+  
+  # Whether to show global variables in exception traces
+  exception_show_globals: true
 
 # AWS DynamoDB Configuration
 aws:
