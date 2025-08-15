@@ -370,25 +370,14 @@ class EnhancedExceptionHandler:
             summary.append(f"   {code_line}")
             summary.append("")
             
-            # Show the variables involved
+            # Show all local variables
             local_vars = self.get_frame_locals(failing_frame)
             if local_vars:
-                summary.append("[VARIABLES] Values of variables on this line:")
+                summary.append("[VARIABLES] All local variables:")
                 
-                # Try to identify variables that appear in the code line
-                variables_in_line = self._find_variables_in_code(code_line, local_vars)
-                
-                if variables_in_line:
-                    for var_name, var_value in variables_in_line.items():
-                        summary.append(f"   - {var_name} = {var_value}")
-                else:
-                    # Show first few variables if we can't identify specific ones
-                    shown_count = 0
-                    for var_name, var_value in sorted(local_vars.items()):
-                        if shown_count >= 3:  # Limit to 3 variables
-                            break
-                        summary.append(f"   - {var_name} = {var_value}")
-                        shown_count += 1
+                # Show ALL local variables, sorted alphabetically
+                for var_name, var_value in sorted(local_vars.items()):
+                    summary.append(f"   - {var_name} = {var_value}")
                 summary.append("")
             
             # Add suggestion for next steps
