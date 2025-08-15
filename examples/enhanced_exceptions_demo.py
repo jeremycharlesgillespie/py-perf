@@ -47,7 +47,7 @@ def process_user_data(user_info):
 def main():
     """Demonstrate the enhanced exception handling."""
     
-    print("🔍 py-perf Enhanced Exception Handler Demo")
+    print("py-perf Enhanced Exception Handler Demo")
     print("=" * 55)
     print()
     print("This demo shows how py-perf automatically captures:")
@@ -59,14 +59,14 @@ def main():
     
     # Initialize PyPerf - this automatically enables enhanced exception handling
     perf = PyPerf()
-    print("✅ PyPerf initialized - enhanced exception handling is now active")
+    print("PyPerf initialized - enhanced exception handling is now active")
     print()
-    print("📊 Current global variables:")
+    print("Current global variables:")
     print(f"   API_CONFIG = {API_CONFIG}")
     print(f"   DEBUG_MODE = {DEBUG_MODE}")
     print(f"   APP_VERSION = {APP_VERSION}")
     print()
-    print("🚨 Triggering exception to demonstrate enhanced trace...")
+    print("Triggering exception to demonstrate enhanced trace...")
     print()
     
     # Set up data that will cause an exception
