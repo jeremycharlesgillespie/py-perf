@@ -345,7 +345,7 @@ class EnhancedExceptionHandler:
             code_line = frame_info.code_context[0].strip() if frame_info.code_context else "N/A"
             
             # Start summary
-            summary.append(f"[FAILURE] THE CODE FAILED")
+            summary.append(f"[STATUS] THE CODE FAILED")
             summary.append("")
             
             # Where it failed
