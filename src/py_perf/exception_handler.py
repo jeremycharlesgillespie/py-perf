@@ -265,7 +265,7 @@ class EnhancedExceptionHandler:
             line_num = frame_info.lineno
             func_name = frame_info.function
             
-            output.append(f"Frame #{i + 1}:")
+            output.append(f"Function Call #{i + 1}:")
             output.append(f"  File: {filename}")
             output.append(f"  Function: {func_name}")
             output.append(f"  Line {line_num}: {frame_info.code_context[0].strip() if frame_info.code_context else 'N/A'}")
